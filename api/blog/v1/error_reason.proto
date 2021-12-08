@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package api.blog.v1;
+import "errors/errors.proto";
+
+option go_package = "github.com/devhg/kratos-example/api/blog/v1;v1";
+option java_multiple_files = true;
+option java_package = "com.github.blog.v1.errors";
+option objc_class_prefix = "APIBLogErrors";
+
+enum ErrorReason {
+  option (errors.default_code) = 500;
+
+  NOT_FOUND = 0 [(errors.code) = 404];
+  CONTENT_MISSING = 1 [(errors.code) = 400];
+
+  ARTICLE_NOT_FOUND = 2;
+}

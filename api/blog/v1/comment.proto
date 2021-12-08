@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package api.blog.v1;
+
+import "google/api/annotations.proto";
+// the validate rules:
+// https://github.com/envoyproxy/protoc-gen-validate
+import "validate/validate.proto";
+
+option go_package = "github.com/devhg/kratos-example/api/blog/v1;v1";
+option java_multiple_files = true;
+option java_package = "com.github.blog.v1";
+option java_outer_classname = "CommentProtoV1";
+
+
+
+service CommentService {
+  rpc CreateComment (CreateCommentRequest) returns (CreateCommentReply) {
+    option (google.api.http) = {
+      post: "/v1/comment"
+      body: "*"
+    };
+  }
+}
+
+message Comment {
+  string name = 1;
+  string content = 2;
+  int64 article_id = 3;
+}
+
+message CreateCommentRequest {
+  string name = 1 [(validate.rules).string = {min_len: 5, max_len: 50}]; // the title of string must be between 5 and 50 character
+  string content = 2 [(validate.rules).string = {min_len: 0, max_len: 200}];
+  int64 article_id = 3;
+}
+
+message CreateCommentReply {
+  Comment comment = 1;
+}
