@@ -30,7 +30,7 @@ Thumbs.db
 *.log
 bin/
 log/**
-deployments/database/volumes/..
+deployments/database/volumes/**
 
 # Develop tools
 .vscode/
