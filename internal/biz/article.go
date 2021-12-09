@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"gorm.io/gorm"
 	"time"
 
 	"go.uber.org/zap"
@@ -13,6 +14,7 @@ type Article struct {
 	Content   string
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt
 	Like      int64
 }
 
@@ -37,9 +39,6 @@ func NewArticleUsecase(repo ArticleRepo, logger *zap.Logger) *ArticleUsecase {
 
 func (uc *ArticleUsecase) List(ctx context.Context) (ps []*Article, err error) {
 	ps, err = uc.repo.ListArticle(ctx)
-	if err != nil {
-		return
-	}
 	return
 }
 

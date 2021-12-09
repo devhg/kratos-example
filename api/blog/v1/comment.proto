@@ -3,6 +3,7 @@ syntax = "proto3";
 package api.blog.v1;
 
 import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
 // the validate rules:
 // https://github.com/envoyproxy/protoc-gen-validate
 import "validate/validate.proto";
@@ -21,12 +22,19 @@ service CommentService {
       body: "*"
     };
   }
+  rpc ListArticleComment (ListCommentReq) returns (ListCommentReply) {
+    option (google.api.http) = {
+      get: "/v1/comments/{article_id}"
+    };
+  }
 }
 
 message Comment {
-  string name = 1;
-  string content = 2;
-  int64 article_id = 3;
+  int64 id = 1;
+  string name = 2;
+  string content = 3;
+  google.protobuf.Timestamp update_at = 4;
+  int64 article_id = 5;
 }
 
 message CreateCommentRequest {
@@ -37,4 +45,12 @@ message CreateCommentRequest {
 
 message CreateCommentReply {
   Comment comment = 1;
+}
+
+message ListCommentReq {
+  int64 article_id = 1;
+}
+
+message ListCommentReply {
+  repeated Comment comments = 1;
 }

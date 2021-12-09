@@ -1,15 +1,14 @@
 package main
 
 import (
-	"context"
-	"entgo.io/ent/entc/integration/ent/migrate"
-	"github.com/devhg/kratos-example/internal/data/ent"
-	"github.com/urfave/cli/v2"
 	"log"
 	"os"
-	// "github.com/devhg/kratos-example/app/migrate"
+	"path/filepath"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/urfave/cli/v2"
+
+	"github.com/devhg/kratos-example/pkg/migrate"
 )
 
 func main() {
@@ -29,25 +28,11 @@ func main() {
 					Value:       "./configs",
 				}},
 			Action: func(ctx *cli.Context) error {
-				// conf, err := filepath.Abs(ctx.String("config"))
-				// if err != nil {
-				// 	return err
-				// }
-				// return migrate.Migrate(conf, nil)
-				dataSource := "root:root@tcp(127.0.0.1:3306)/testdb?parseTime=True"
-				client, err := ent.Open("mysql", dataSource)
+				conf, err := filepath.Abs(ctx.String("config"))
 				if err != nil {
-					log.Fatalf("failed creating schema resources: %v", err)
+					return err
 				}
-				defer client.Close()
-
-				if err := client.Debug().Schema.Create(
-					context.Background(),
-					migrate.WithDropIndex(true),
-					migrate.WithDropColumn(true)); err != nil {
-					log.Fatalf("failed creating schema resources: %v", err)
-				}
-				return nil
+				return migrate.Migrate(conf, nil)
 			},
 		},
 	}

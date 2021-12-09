@@ -2,11 +2,15 @@ package migrate
 
 import (
 	"fmt"
+	"gorm.io/driver/mysql"
+	gormLogger "gorm.io/gorm/logger"
 	"log"
+	"os"
+	"time"
 
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 
 	"github.com/devhg/kratos-example/internal/conf"
 	"github.com/devhg/kratos-example/internal/model"
@@ -43,50 +47,40 @@ func loadBconf(flagConf string) {
 	bconf = &bc
 }
 
-func Close() {
-	if Db != nil {
-		_ = Db.Close()
-	}
-}
-
 func Migrate(conf string, db *gorm.DB) error {
 	loadBconf(conf)
 
-	defer Close()
 	log.Println("正在连接数据库...")
 
 	if db == nil {
 		var err error
-		db, err = gorm.Open(bconf.Data.Database.Driver, bconf.Data.Database.Source)
-
+		sqlConf := mysql.Config{
+			DriverName: bconf.Data.Database.Driver,
+			DSN:        bconf.Data.Database.Source, // Data Source Name，参考 https://github.com/go-sql-driver/mysql#dsn-data-source-name
+		}
+		db, err = gorm.Open(mysql.New(sqlConf), &gorm.Config{
+			SkipDefaultTransaction: true,
+			Logger: gormLogger.New(
+				log.New(os.Stdout, "\r", log.LstdFlags), // io writer（日志输出的目标，前缀和日志包含的内容——译者注）
+				gormLogger.Config{
+					SlowThreshold:             time.Second,      // 慢 SQL 阈值
+					LogLevel:                  gormLogger.Error, // 日志级别
+					IgnoreRecordNotFoundError: true,             // 忽略ErrRecordNotFound（记录未找到）错误
+					Colorful:                  true,             // 禁用彩色打印
+				},
+			),
+		})
 		if err != nil {
 			return err
 		}
 	}
 
-	db.LogMode(bconf.Common.Mode != "production")
-
 	// Migrate the schema
 	if err := db.AutoMigrate(
-		new(model.Admin),           // 管理员表
-		new(model.User),            // 用户表
-		new(model.WalletCny),       // 钱包 - CNY
-		new(model.WalletUsd),       // 钱包 - USD
-		new(model.WalletCoin),      // 钱包 - COIN
-		new(model.InviteHistory),   // 邀请表
-		new(model.LoginLog),        // 登陆成功表
-		new(model.TransferLogCny),  // 转账记录 - CNY
-		new(model.TransferLogUsd),  // 转账记录 - USD
-		new(model.TransferLogCoin), // 转账记录 - COIN
-		new(model.FinanceLogCny),   // 流水列表 - CNY
-		new(model.FinanceLogUsd),   // 流水列表 - USD
-		new(model.FinanceLogCoin),  // 流水列表 - COIN
-		new(model.Address),         // 收货地址
-		new(model.Banner),          // Banner 表
-		new(model.Help),            // 帮助中心
-		new(model.WechatOpenID),    // 微信 open_id 外键表
-		new(model.OAuth),           // oAuth2 表
-	).Error; err != nil {
+		new(model.Article),
+		new(model.Admin),   // 管理员表
+		new(model.Address), // 收货地址
+	); err != nil {
 		return err
 	}
 
@@ -98,12 +92,11 @@ func Migrate(conf string, db *gorm.DB) error {
 	if err := db.Where(&superAdminInfo).First(&superAdminInfo).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			err = db.Create(&model.Admin{
-				Username:  "admin",
-				Name:      "admin",
-				Password:  utils.GeneratePassword(dotenv.GetByDefault("ADMIN_DEFAULT_PASSWORD", "123456")),
-				Accession: []string{},
-				Status:    model.AdminStatusInit,
-				IsSuper:   true,
+				Username: "admin",
+				Name:     "admin",
+				Password: utils.GeneratePassword(dotenv.GetByDefault("ADMIN_DEFAULT_PASSWORD", "123456")),
+				Status:   model.AdminStatusInit,
+				IsSuper:  true,
 			}).Error
 
 			if err != nil {
@@ -120,14 +113,28 @@ func Migrate(conf string, db *gorm.DB) error {
 func Connect() {
 	log.Println("正在连接数据库...")
 
-	db, err := gorm.Open(bconf.Data.Database.Driver, bconf.Data.Database.Source)
-	if err != nil {
-		log.Fatalln(err)
+	var err error
+	sqlConf := mysql.Config{
+		DriverName: bconf.Data.Database.Driver,
+		DSN:        bconf.Data.Database.Source, // Data Source Name，参考 https://github.com/go-sql-driver/mysql#dsn-data-source-name
 	}
-	db.LogMode(bconf.Common.Mode != "production")
+	Db, err = gorm.Open(mysql.New(sqlConf), &gorm.Config{
+		SkipDefaultTransaction: true,
+		Logger: gormLogger.New(
+			log.New(os.Stdout, "\r", log.LstdFlags), // io writer（日志输出的目标，前缀和日志包含的内容——译者注）
+			gormLogger.Config{
+				SlowThreshold:             time.Second,     // 慢 SQL 阈值
+				LogLevel:                  gormLogger.Info, // 日志级别
+				IgnoreRecordNotFoundError: true,            // 忽略ErrRecordNotFound（记录未找到）错误
+				Colorful:                  true,            // 禁用彩色打印
+			},
+		),
+	})
+	if err != nil {
+		panic(err)
+	}
 
 	log.Println("连接数据库成功...")
-	Db = db
 }
 
 // DeleteRowByTable WANING: 该操作会删除数据，并且不可恢复

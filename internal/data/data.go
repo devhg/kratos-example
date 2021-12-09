@@ -1,23 +1,18 @@
 package data
 
 import (
-	"context"
-	"fmt"
-
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/sql"
 	"github.com/go-redis/redis/extra/redisotel"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/wire"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
-	// init mysql driver
-	_ "github.com/go-sql-driver/mysql"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+	gormLogger "gorm.io/gorm/logger"
+	"log"
+	"os"
+	"time"
 
 	"github.com/devhg/kratos-example/internal/conf"
-	"github.com/devhg/kratos-example/internal/data/ent"
 )
 
 // ProviderSet is data providers.
@@ -25,40 +20,30 @@ var ProviderSet = wire.NewSet(NewData, NewArticleRepo, NewCommentRepo)
 
 // Data .
 type Data struct {
-	db  *ent.Client
+	db  *gorm.DB
 	rdb *redis.Client
 }
 
 // NewData .
 func NewData(conf *conf.Data, logger *zap.Logger) (*Data, func(), error) {
-	drv, err := sql.Open(
-		conf.Database.Driver,
-		conf.Database.Source,
-	)
-	sqlDrv := dialect.DebugWithContext(drv, func(ctx context.Context, i ...interface{}) {
-		logger.Info("transaction", zap.Any("sql", i))
-		// log := log.NewHelper(logger)
-		// log.WithContext(ctx).Info(i...)
-		tracer := otel.Tracer("ent.")
-		kind := trace.SpanKindServer
-		_, span := tracer.Start(ctx,
-			"Query",
-			trace.WithAttributes(
-				attribute.String("action", fmt.Sprint(i...)),
-			),
-			trace.WithSpanKind(kind),
-		)
-		span.End()
-	})
-	client := ent.NewClient(ent.Driver(sqlDrv))
-	if err != nil {
-		logger.Error("datasource", zap.Error(err))
-		return nil, nil, err
+	sqlConf := mysql.Config{
+		DriverName: conf.Database.Driver,
+		DSN:        conf.Database.Source, // Data Source Name，参考 https://github.com/go-sql-driver/mysql#dsn-data-source-name
 	}
-	// Run the auto migration tool.
-	if err := client.Schema.Create(context.Background()); err != nil {
-		logger.Error("failed creating schema resources", zap.Error(err))
-		return nil, nil, err
+	db, err := gorm.Open(mysql.New(sqlConf), &gorm.Config{
+		SkipDefaultTransaction: true,
+		Logger: gormLogger.New(
+			log.New(os.Stdout, "\r", log.LstdFlags), // io writer（日志输出的目标，前缀和日志包含的内容——译者注）
+			gormLogger.Config{
+				SlowThreshold:             time.Second,       // 慢 SQL 阈值
+				LogLevel:                  gormLogger.Silent, // 日志级别
+				IgnoreRecordNotFoundError: true,              // 忽略ErrRecordNotFound（记录未找到）错误
+				Colorful:                  true,              // 禁用彩色打印
+			},
+		),
+	})
+	if err != nil {
+		panic(err)
 	}
 
 	rdb := redis.NewClient(&redis.Options{
@@ -71,12 +56,13 @@ func NewData(conf *conf.Data, logger *zap.Logger) (*Data, func(), error) {
 	})
 	rdb.AddHook(redisotel.TracingHook{})
 	d := &Data{
-		db:  client,
+		db:  db,
 		rdb: rdb,
 	}
 	return d, func() {
 		logger.Info("closing the data resources")
-		if err := d.db.Close(); err != nil {
+		sqlDB, _ := d.db.DB()
+		if err := sqlDB.Close(); err != nil {
 			logger.Error("db close err", zap.Error(err))
 		}
 		if err := d.rdb.Close(); err != nil {

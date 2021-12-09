@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"github.com/go-kratos/kratos/v2/errors"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 
@@ -61,8 +60,8 @@ func (s *BlogService) GetArticle(ctx context.Context, req *v1.GetArticleRequest)
 	p, err := s.article.Get(ctx, req.Id)
 	s.log.Error("", zap.Error(err))
 	if err != nil {
-		// err := v1.ErrorArticleNotFound("%v", err)
-		err := errors.FromError(err)
+		err := v1.ErrorArticleNotFound("%v", err)
+		// err := errors.FromError(err)
 		err = err.WithMetadata(map[string]string{
 			"foo": "bar",
 		})

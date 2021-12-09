@@ -1,8 +1,7 @@
 package model
 
 import (
-	"github.com/devhg/kratos-example/internal/utils"
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 	"time"
 )
 
@@ -27,6 +26,7 @@ func (news *Address) TableName() string {
 	return "address"
 }
 
-func (news *Address) BeforeCreate(scope *gorm.Scope) error {
-	return scope.SetColumn("id", utils.GenerateId())
+func (news *Address) BeforeCreate(db *gorm.DB) error {
+	// panic("implement me")
+	return nil
 }
