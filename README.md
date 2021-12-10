@@ -1,7 +1,9 @@
 # Kratos Project Template
 
-## 简单使用
-生成ent: `go generate ./internal/data/ent/...`
+## 数据库同步 
+```
+go run cmd/cli/main.go migrate --config ./configs
+```
 
 ## Install Kratos
 ```

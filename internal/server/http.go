@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/go-kratos/kratos/v2/middleware/ratelimit"
 	"github.com/go-kratos/kratos/v2/middleware/recovery"
 	"github.com/go-kratos/kratos/v2/middleware/validate"
 	"github.com/go-kratos/kratos/v2/transport/http"
@@ -17,6 +18,7 @@ func NewHTTPServer(c *conf.Server, logger *zap.Logger,
 	blog *service.BlogService, comment *service.CommentService) *http.Server {
 	var opts = []http.ServerOption{
 		http.Middleware(
+			ratelimit.Server(),
 			recovery.Recovery(),
 			validate.Validator(),
 		),
